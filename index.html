@@ -215,11 +215,28 @@
 
         return (
             <div>
-            <pre style={{position: 'relative'}}>
-                {bibtex}
-            </pre>
+                <pre style={{position: 'relative'}}>{bibtex}</pre>
                 <button className="copy-button" onClick={handleCopy}>Copy</button>
             </div>
+        );
+    }
+
+    function linkTo({bibJson}) {
+        const getUrl = () => {
+            if (bibJson?.url)
+                return bibJson?.url;
+            if (bibJson?.doi)
+                return `https://doi.org/${bibJson?.doi}`;
+            return null;
+        }
+
+        const url = getUrl();
+
+        if (!url) return null;
+
+        // make a url button
+        return (
+            <a href={url} target="_blank" rel="noreferrer">Link</a>
         );
     }
 
@@ -277,10 +294,8 @@
                 {hits.map((hit, index) => (
                     <div key={index} className="result-item">
                         <h3 className="result-title">{hit.document.title}</h3>
-                        <p className="result-year">{hit.document.year}</p>
-                        <button className="generate-bibtex-btn" onClick={() => handleGenerateBibtex(hit)}>
-                            Show BibTeX
-                        </button>
+                        <p className="result-year">{hit.document.year} {linkTo({bibJson: hit.document})}</p>
+                        <button className="generate-bibtex-btn" onClick={() => handleGenerateBibtex(hit)}>BibTeX</button>
                     </div>
                 ))}
                 {selectedHit && (
