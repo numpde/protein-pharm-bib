@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bibliography search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+            text-align: left;
+        }
+
+        input {
+            padding: 10px;
+            width: 300px;
+            font-size: 16px;
+        }
+
+        #display {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+    <!-- Load React and ReactDOM from CDN -->
+    <script src="./static/react.development.js"></script>
+    <script src="./static/react-dom.development.js"></script>
+    <!-- Load Babel for JSX transformation -->
+    <script src="./static/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- React Component -->
+<script type="text/babel">
+    const {useState, useEffect, useRef} = React;
+
+    function BibjsonToBibtexApp(bibJson) {
+        const escapeSpecialChars = (value) => {
+            return String(value).replace(/[\{\}\\]/g, '\\$&'); // Escapes `{`, `}`, and `\`
+        };
+
+        const formatField = (key, value) => {
+            return `  ${key} = {${escapeSpecialChars(value)}}`;
+        };
+
+        const bibjsonToBibtex = (bibjson) => {
+            const {ENTRYTYPE, ID, ...fields} = bibjson;
+            let bibtex = `@${ENTRYTYPE}{${ID},\n`;
+
+            for (const [key, value] of Object.entries(fields)) {
+                if (value) {
+                    bibtex += formatField(key, value) + ',\n';
+                }
+            }
+
+            bibtex = bibtex.trim().replace(/,$/, '') + '\n}';
+            return bibtex;
+        };
+
+        const displayField = (field, value) => {
+            if (field === 'doi') {
+                return (
+                    <a href={`https://doi.org/${value}`} target="_blank" rel="noopener noreferrer">
+                        DOI: {value}
+                    </a>
+                );
+            } else if (field === 'url') {
+                return (
+                    <a href={value} target="_blank" rel="noopener noreferrer">
+                        URL: {value}
+                    </a>
+                );
+            } else {
+                return (
+                    <p>
+                        {field.charAt(0).toUpperCase() + field.slice(1)}: {value}
+                    </p>
+                );
+            }
+        };
+
+        const fieldsToDisplay = ['title', 'year', 'doi', 'url'];
+        const bibtex = bibjsonToBibtex(bibJson);
+
+        return (
+            <div style={{fontFamily: 'Arial, sans-serif', margin: '20px'}}>
+                <div>
+                    {fieldsToDisplay.map((field) =>
+                        bibJson[field] ? (
+                            <div key={field}>{displayField(field, bibJson[field])}</div>
+                        ) : null
+                    )}
+                </div>
+                <pre style={{backgroundColor: '#f4f4f4', padding: '10px', borderRadius: '5px'}}>
+                {bibtex}
+            </pre>
+            </div>
+        );
+    }
+
+    function hitToBibJson(hit) {
+        const doc = hit.document;
+
+        // Extract the BibTeX entry type from the 'type' field, defaulting to 'article' if not present
+        const entryType = doc.type || 'article';
+
+        // Generate the citation key ('ID') using 'cite_key' if available,
+        // otherwise default to 'SomeAuthor-YYYY' using the last name and year
+        const citeKey =
+            doc.cite_key ||
+            doc.id ||
+            `${(doc.author || 'unknown').split(' ').slice(-1)}-${doc.year || 'noyear'}`;
+
+        const bibJson = {
+            ENTRYTYPE: entryType,
+            ID: citeKey,
+        };
+
+        // Iterate over all fields in the document
+        Object.entries(doc).forEach(([field, value]) => {
+            if (['type', 'extra_fields', 'cite_key', 'id'].includes(field.toLowerCase())) {
+                return; // Skip these fields
+            }
+
+            if (field === 'pages' && typeof value === 'string') {
+                // Replace hyphens with double hyphens in the 'pages' field
+                value = value
+                    .split('-')
+                    .map((x) => x.trim('-'))
+                    .filter(Boolean)
+                    .join('--');
+            }
+
+            bibJson[field] = String(value);
+        });
+
+        // Add extra fields if they exist and are not already in bibEntry
+        if (doc.extra_fields && typeof doc.extra_fields === 'object') {
+            Object.entries(doc.extra_fields).forEach(([field, value]) => {
+                if (!(field in bibJson)) {
+                    bibJson[field] = value;
+                }
+            });
+        }
+
+        return bibJson;
+    }
+
+    function BibtexDisplay({hits}) {
+        const [selectedHit, setSelectedHit] = useState(null);
+
+        const handleGenerateBibtex = (hit) => {
+            const bibjson = hitToBibJson(hit);
+            setSelectedHit(bibjson);
+        };
+
+        return (
+            <div>
+                {hits.map((hit, index) => (
+                    <p key={index}>
+                        <button onClick={() => handleGenerateBibtex(hit)}>{hit.document.title} ({hit.document.year})</button>
+                    </p>
+                ))}
+                {selectedHit && (
+                    <div>
+                        <h2>Selected entry</h2>
+                        <div>{BibjsonToBibtexApp(selectedHit)}</div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    function App() {
+        const [inputValue, setInputValue] = useState('');
+        const [results, setResults] = useState([]);
+        const [isLoading, setIsLoading] = useState(false);
+        const debounceTimeout = useRef(null);
+        const lastQueriedValue = useRef('');
+
+        const handleChange = (event) => {
+            setInputValue(event.target.value);
+        };
+
+        const fetchData = async (query) => {
+            try {
+                setIsLoading(true);
+
+                const params = new URLSearchParams({
+                    q: query,
+                    query_by: "embedding",
+                    per_page: 3,
+                    prefix: false,
+                    exclude_fields: "embedding"
+                });
+
+                const response = await fetch(`https://ts.counter-resistance.org/collections/bibliography/documents/search?${params.toString()}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-TYPESENSE-API-KEY': 'F7ghgqY7OGYUwt3A3FP0BJwFa7Pqyikg',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Only update results if the query hasn't changed
+                if (lastQueriedValue.current === query) {
+                    setResults(data.hits);
+                }
+            } catch (error) {
+                console.error('Error fetching search results:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        useEffect(() => {
+            if (inputValue.trim() === '') {
+                setResults([]);
+                return;
+            }
+
+            if (debounceTimeout.current) {
+                clearTimeout(debounceTimeout.current);
+            }
+
+            // Save the current query value
+            lastQueriedValue.current = inputValue;
+
+            debounceTimeout.current = setTimeout(() => {
+                fetchData(inputValue);
+            }, 500);
+
+            return () => clearTimeout(debounceTimeout.current);
+        }, [inputValue]);
+
+        return (
+            <div>
+                <input
+                    type="text"
+                    placeholder="Search..."
+                    value={inputValue}
+                    onChange={handleChange}
+                />
+                <div id="display">
+                    {isLoading ? (
+                        <p>Loading...</p>
+                    ) : results.length > 0 ? (
+                        results.length <= 3 ? (
+                            <BibtexDisplay hits={results}/>
+                        ) : (
+                            results.map((doc) => (
+                                <p key={doc.document.id}>{doc.document.id}</p>
+                            ))
+                        )
+                    ) : (
+                        <p>---</p>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // Render the App component into the root div
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App/>);
+</script>
+</body>
+</html>
