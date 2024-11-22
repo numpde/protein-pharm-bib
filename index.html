@@ -113,6 +113,22 @@
             background-color: #0056b3;
         }
 
+        .copy-button {
+            margin-top: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.9em;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .copy-button:hover {
+            background-color: #0056b3;
+        }
+
         /* Selected Entry */
         .selected-entry {
             margin-top: 20px;
@@ -191,7 +207,7 @@
 
         const handleCopy = () => {
             navigator.clipboard.writeText(bibtex).then(() => {
-                alert("BibTeX copied to clipboard!");
+                console.info("BibTeX copied to clipboard!");
             }).catch((err) => {
                 console.error("Failed to copy text: ", err);
             });
@@ -202,24 +218,7 @@
             <pre style={{position: 'relative'}}>
                 {bibtex}
             </pre>
-                <button
-                    onClick={handleCopy}
-                    style={{
-                        marginTop: '10px',
-                        backgroundColor: '#007BFF',
-                        color: '#fff',
-                        border: 'none',
-                        padding: '8px 16px',
-                        fontSize: '0.9em',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.3s ease',
-                    }}
-                    onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
-                    onMouseOut={(e) => e.target.style.backgroundColor = '#007BFF'}
-                >
-                    Copy
-                </button>
+                <button className="copy-button" onClick={handleCopy}>Copy</button>
             </div>
         );
     }
@@ -245,6 +244,10 @@
                     .map((x) => x.trim('-'))
                     .filter(Boolean)
                     .join('--');
+            }
+
+            if (field === 'author') {
+                value = value.split(';').map((author) => author.trim()).join(' and ');
             }
 
             bibJson[field] = String(value);
