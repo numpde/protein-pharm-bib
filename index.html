@@ -2,24 +2,99 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Bibliography search</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bibliography Search</title>
     <style>
+        /* General Styles */
         body {
             font-family: Arial, sans-serif;
-            margin: 50px;
-            text-align: left;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
         }
 
-        input {
-            padding: 10px;
-            width: 300px;
-            font-size: 16px;
+        #root {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        h2 {
+            font-size: 1.5em;
+            margin-top: 30px;
+            color: #444;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 20px;
         }
 
         #display {
-            margin-top: 20px;
-            font-size: 18px;
+            font-size: 1em;
             color: #333;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.95em;
+            overflow-x: auto;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            #root {
+                margin: 0 10px;
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            h2 {
+                font-size: 1.3em;
+            }
+
+            button {
+                font-size: 0.9em;
+                padding: 8px 16px;
+            }
+
+            input[type="text"] {
+                font-size: 0.95em;
+            }
         }
     </style>
     <!-- Load React and ReactDOM from CDN -->
@@ -31,13 +106,14 @@
 <body>
 <div id="root"></div>
 
-<!-- React Component -->
 <script type="text/babel">
     const {useState, useEffect, useRef} = React;
 
-    function BibjsonToBibtexApp(bibJson) {
+    function BibjsonToBibtexApp({bibJson}) {
+        console.log(bibJson);
+
         const escapeSpecialChars = (value) => {
-            return String(value).replace(/[\{\}\\]/g, '\\$&'); // Escapes `{`, `}`, and `\`
+            return String(value).replace(/[\{\}\\]/g, '\\$&');
         };
 
         const formatField = (key, value) => {
@@ -58,43 +134,12 @@
             return bibtex;
         };
 
-        const displayField = (field, value) => {
-            if (field === 'doi') {
-                return (
-                    <a href={`https://doi.org/${value}`} target="_blank" rel="noopener noreferrer">
-                        DOI: {value}
-                    </a>
-                );
-            } else if (field === 'url') {
-                return (
-                    <a href={value} target="_blank" rel="noopener noreferrer">
-                        URL: {value}
-                    </a>
-                );
-            } else {
-                return (
-                    <p>
-                        {field.charAt(0).toUpperCase() + field.slice(1)}: {value}
-                    </p>
-                );
-            }
-        };
-
         const fieldsToDisplay = ['title', 'year', 'doi', 'url'];
         const bibtex = bibjsonToBibtex(bibJson);
 
         return (
-            <div style={{fontFamily: 'Arial, sans-serif', margin: '20px'}}>
-                <div>
-                    {fieldsToDisplay.map((field) =>
-                        bibJson[field] ? (
-                            <div key={field}>{displayField(field, bibJson[field])}</div>
-                        ) : null
-                    )}
-                </div>
-                <pre style={{backgroundColor: '#f4f4f4', padding: '10px', borderRadius: '5px'}}>
-                {bibtex}
-            </pre>
+            <div>
+                <pre>{bibtex}</pre>
             </div>
         );
     }
@@ -102,29 +147,18 @@
     function hitToBibJson(hit) {
         const doc = hit.document;
 
-        // Extract the BibTeX entry type from the 'type' field, defaulting to 'article' if not present
         const entryType = doc.type || 'article';
-
-        // Generate the citation key ('ID') using 'cite_key' if available,
-        // otherwise default to 'SomeAuthor-YYYY' using the last name and year
         const citeKey =
             doc.cite_key ||
             doc.id ||
             `${(doc.author || 'unknown').split(' ').slice(-1)}-${doc.year || 'noyear'}`;
 
-        const bibJson = {
-            ENTRYTYPE: entryType,
-            ID: citeKey,
-        };
+        const bibJson = {ENTRYTYPE: entryType, ID: citeKey};
 
-        // Iterate over all fields in the document
         Object.entries(doc).forEach(([field, value]) => {
-            if (['type', 'extra_fields', 'cite_key', 'id'].includes(field.toLowerCase())) {
-                return; // Skip these fields
-            }
+            if (['type', 'extra_fields', 'cite_key', 'id'].includes(field.toLowerCase())) return;
 
             if (field === 'pages' && typeof value === 'string') {
-                // Replace hyphens with double hyphens in the 'pages' field
                 value = value
                     .split('-')
                     .map((x) => x.trim('-'))
@@ -135,7 +169,6 @@
             bibJson[field] = String(value);
         });
 
-        // Add extra fields if they exist and are not already in bibEntry
         if (doc.extra_fields && typeof doc.extra_fields === 'object') {
             Object.entries(doc.extra_fields).forEach(([field, value]) => {
                 if (!(field in bibJson)) {
@@ -158,14 +191,16 @@
         return (
             <div>
                 {hits.map((hit, index) => (
-                    <p key={index}>
-                        <button onClick={() => handleGenerateBibtex(hit)}>{hit.document.title} ({hit.document.year})</button>
-                    </p>
+                    <div key={index}>
+                        <button onClick={() => handleGenerateBibtex(hit)}>
+                            {hit.document.title} ({hit.document.year})
+                        </button>
+                    </div>
                 ))}
                 {selectedHit && (
                     <div>
-                        <h2>Selected entry</h2>
-                        <div>{BibjsonToBibtexApp(selectedHit)}</div>
+                        <h2>Selected Entry</h2>
+                        <BibjsonToBibtexApp bibJson={selectedHit}/>
                     </div>
                 )}
             </div>
@@ -186,7 +221,6 @@
         const fetchData = async (query) => {
             try {
                 setIsLoading(true);
-
                 const params = new URLSearchParams({
                     q: query,
                     query_by: "embedding",
@@ -209,7 +243,6 @@
 
                 const data = await response.json();
 
-                // Only update results if the query hasn't changed
                 if (lastQueriedValue.current === query) {
                     setResults(data.hits);
                 }
@@ -230,7 +263,6 @@
                 clearTimeout(debounceTimeout.current);
             }
 
-            // Save the current query value
             lastQueriedValue.current = inputValue;
 
             debounceTimeout.current = setTimeout(() => {
@@ -242,6 +274,7 @@
 
         return (
             <div>
+                <h1>Bibliography Search</h1>
                 <input
                     type="text"
                     placeholder="Search..."
@@ -252,22 +285,15 @@
                     {isLoading ? (
                         <p>Loading...</p>
                     ) : results.length > 0 ? (
-                        results.length <= 3 ? (
-                            <BibtexDisplay hits={results}/>
-                        ) : (
-                            results.map((doc) => (
-                                <p key={doc.document.id}>{doc.document.id}</p>
-                            ))
-                        )
+                        <BibtexDisplay hits={results}/>
                     ) : (
-                        <p>---</p>
+                        <p>No results found.</p>
                     )}
                 </div>
             </div>
         );
     }
 
-    // Render the App component into the root div
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App/>);
 </script>
