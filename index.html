@@ -72,6 +72,58 @@
             overflow-x: auto;
         }
 
+        /* General Layout */
+        .results {
+            margin-top: 20px;
+        }
+
+        .result-item {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+
+        /* Title */
+        .result-title {
+            font-size: 1.2em;
+            margin: 5px 0;
+            color: #333;
+        }
+
+        /* Year */
+        .result-year {
+            margin: 5px 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        /* Button */
+        .generate-bibtex-btn {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.9em;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .generate-bibtex-btn:hover {
+            background-color: #0056b3;
+        }
+
+        /* Selected Entry */
+        .selected-entry {
+            margin-top: 20px;
+        }
+
+        .selected-entry h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             #root {
@@ -137,12 +189,41 @@
         const fieldsToDisplay = ['title', 'year', 'doi', 'url'];
         const bibtex = bibjsonToBibtex(bibJson);
 
+        const handleCopy = () => {
+            navigator.clipboard.writeText(bibtex).then(() => {
+                alert("BibTeX copied to clipboard!");
+            }).catch((err) => {
+                console.error("Failed to copy text: ", err);
+            });
+        };
+
         return (
             <div>
-                <pre>{bibtex}</pre>
+            <pre style={{position: 'relative'}}>
+                {bibtex}
+            </pre>
+                <button
+                    onClick={handleCopy}
+                    style={{
+                        marginTop: '10px',
+                        backgroundColor: '#007BFF',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '8px 16px',
+                        fontSize: '0.9em',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.3s ease',
+                    }}
+                    onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
+                    onMouseOut={(e) => e.target.style.backgroundColor = '#007BFF'}
+                >
+                    Copy
+                </button>
             </div>
         );
     }
+
 
     function hitToBibJson(hit) {
         const doc = hit.document;
@@ -189,16 +270,18 @@
         };
 
         return (
-            <div>
+            <div className="results">
                 {hits.map((hit, index) => (
-                    <div key={index}>
-                        <button onClick={() => handleGenerateBibtex(hit)}>
-                            {hit.document.title} ({hit.document.year})
+                    <div key={index} className="result-item">
+                        <h3 className="result-title">{hit.document.title}</h3>
+                        <p className="result-year">{hit.document.year}</p>
+                        <button className="generate-bibtex-btn" onClick={() => handleGenerateBibtex(hit)}>
+                            Show BibTeX
                         </button>
                     </div>
                 ))}
                 {selectedHit && (
-                    <div>
+                    <div className="selected-entry">
                         <h2>Selected Entry</h2>
                         <BibjsonToBibtexApp bibJson={selectedHit}/>
                     </div>
