@@ -15,6 +15,8 @@
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+
+          // This is a read-only key
           'X-TYPESENSE-API-KEY': 'F7ghgqY7OGYUwt3A3FP0BJwFa7Pqyikg'
         }
       }
