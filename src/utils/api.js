@@ -10,7 +10,7 @@
     });
 
     const response = await fetch(
-      `https://ts.counter-resistance.org/collections/bibliography/documents/search?${params}`,
+      `https://ts-bib.randompile.net/collections/bibliography/documents/search?${params}`,
       {
         method: 'GET',
         headers: {
